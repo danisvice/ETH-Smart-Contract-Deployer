@@ -80,11 +80,58 @@ async fn main() -> Result<()> {
 
 
 }
-
+    
     pub async fn compile(root: &str) -> Result<ProjectCompileOutput<ConfigurableArtifacts>> {
+        let root = PathBuf::from(root)
+        if !root.exists(){
+            return Err(eyre!("Project root {rot:?} does not exist!"));
+        }
 
+        let paths = ProjectPathsConfig::builder()
+            .root(&root)
+            .sources(&root)
+            .build()?;
+
+        let project = Project::builder()
+            .paths(paths)
+            .set_auto_detect(true)
+            .no_artifacts()
+            .build()?;
+
+        let output = project.compile()?;
+
+        let output.has_compile_errors() {
+            Err(eyre!(
+                "Compile solidity project failed: {:?}",
+                output.output().errors
+            ))
+        } else {
+            Ok(output.clone())
+        }
     }
 
     pub async fn print_project(project: ProjectCompileOutput<ConfigurableArtifacts>) -> Result<()> {
+        let artifacts = project.into_artifacts();
+        for(id, artifact) in artifacts {
+            let name = id.name;
+            let abi = artifact.abi.context("No ABI found for artifact {name}");
+            println!("{}", "=".repeat(80));
+            println!("CONTRACT: {:?}", name);
 
+            let contract = &abi.abi;
+            let functions = contract.functions();
+            let functions = functions.cloned();
+            let constructor = contract.constructor();
+
+            if let Some(constructor) = constructor{
+                let args = &constructor.inputs;
+                println!("CONSTRUCTOR args: {args:?}");
+            }
+            for func in functions{
+                let name = &func.name;
+                let params = & func.inputs;
+                println!("FUNCTION {name} {params:?}");
+            }
+        }
+        Ok(())
     }

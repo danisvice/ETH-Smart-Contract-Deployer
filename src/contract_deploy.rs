@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
     .clone();
 //get abi and bytecode which are only available in a compiled contract
     let (abi, bytecode, _) = contract.into_parts();
-    
+
     let abi = abi.context("Missing ABI from contract")?;
 
     let bytecode = bytecode.context("Missing bytecode from contract")?;
@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
         .clone()
         .get_block(BlockNumber::Latest)
         .await?
-        .context("Failed to get block");
+        .context("Failed to get latest block")?;
 
     let gas_price = block
         .next_block_base_fee()
@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
         let artifacts = project.into_artifacts();
         for(id, artifact) in artifacts {
             let name = id.name;
-            let abi = artifact.abi.context("No ABI found for artifact {name}");
+            let abi = artifact.abi.context("No ABI found for artifact {name}")?;
             println!("{}", "=".repeat(80));
             println!("CONTRACT: {:?}", name);
 

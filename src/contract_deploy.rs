@@ -36,6 +36,16 @@ async fn main() -> Result<()> {
 
     print_project(project.clone()).await?;
 
+    let balance = provider.get_balance(wallet.address(), None).await?;
+    println!(
+        "Wallet first adress {} balance: {}",
+        wallet.address().encode_hex::<String>(),
+        balance
+    );
+
+    let contract_name = "BUSDImplementation";
+
+}
 
     pub async fn compile(root: &str) -> Result<ProjectCompileOutput<ConfigurableArtifacts>> {
 

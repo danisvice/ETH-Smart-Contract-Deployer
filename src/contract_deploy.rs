@@ -5,7 +5,7 @@ use ethers::prelude::{
 };
 use ethers::utils::Ganache;
 use ethers_providers::{Middleware, Provider};
-use ethers_solc::Artifact;
+use ethers::solc::Artifact;
 use eyre::Result;
 use eyre::{eyre, ContextCompat};
 use hex::ToHex;
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     );
 
     let provider = Provider::try_from(ganache.endpoint())?.interval(Duration::from_millis(10));
-    let chain_id = Provider.get_chainid().await?.as_u64();
+    let chain_id = provider.get_chainid().await?.as_u64();
     println!("Ganache started with chain_id {chain_id}");
 
     let project = compile("examples/").await?;
@@ -47,30 +47,35 @@ async fn main() -> Result<()> {
     let contract = project
     .find(contract_name)
     .context("Contract not found")?
-    .clone()
+    .clone();
 //get abi and bytecode which are only available in a compiled contract
     let (abi, bytecode, _) = contract.into_parts();
-    let ai = abi.context("Missing ABI from contract")?;
+    
+    let abi = abi.context("Missing ABI from contract")?;
+
     let bytecode = bytecode.context("Missing bytecode from contract")?;
 //create signer client
     let wallet = wallet.with_chain_id(chain_id);
+
     let client = SignerMiddleware::new(provider.clone(), wallet).into();
     //deploy contract
     let factory = ContractFactory::new(abi.clone(), bytecode, client);
 
     let mut deployer = factory.deploy(())?;
+
     let block = provider
         .clone()
         .get_block(BlockNumber::Latest)
         .await?
-        .context("Failed to get block")
+        .context("Failed to get block");
 
     let gas_price = block
         .next_block_base_fee()
-        .context("Failed to get the base fee for the next block")?;
+        .context("Failed to get the next block base fee")?;
     deployer.tx.set_gas_price::<U256>(gas_price);
 
     let contract = deployer.clone().legacy().send().await?;
+
     println!(
         "BUSDImpl contract address {}",
         contract.address().encode_hex::<String>()
@@ -82,9 +87,9 @@ async fn main() -> Result<()> {
 }
     
     pub async fn compile(root: &str) -> Result<ProjectCompileOutput<ConfigurableArtifacts>> {
-        let root = PathBuf::from(root)
+        let root = PathBuf::from(root);
         if !root.exists(){
-            return Err(eyre!("Project root {rot:?} does not exist!"));
+            return Err(eyre!("Project root {root:?} does not exist!"));
         }
 
         let paths = ProjectPathsConfig::builder()
@@ -100,7 +105,7 @@ async fn main() -> Result<()> {
 
         let output = project.compile()?;
 
-        let output.has_compile_errors() {
+        if output.has_compiler_errors() {
             Err(eyre!(
                 "Compile solidity project failed: {:?}",
                 output.output().errors
@@ -127,6 +132,7 @@ async fn main() -> Result<()> {
                 let args = &constructor.inputs;
                 println!("CONSTRUCTOR args: {args:?}");
             }
+
             for func in functions{
                 let name = &func.name;
                 let params = & func.inputs;
